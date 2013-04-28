@@ -1,0 +1,480 @@
+<html>
+<head>
+<style type="text/css">
+    body{
+        padding: 0;
+        margin: 0;
+        font-family: verdana, sans-serif;
+    }
+
+    canvas#game-canvas{
+        position: relative;
+        top: 0px;
+        left: 0px;
+        height: 100%;
+        width: 100%;
+        display: block;
+    }
+
+    .debug
+    {
+        color: #fff;
+        position: absolute;
+        top: 0px;
+        left: 0px;
+        z-index: 1;
+    }
+
+    .debug li{
+        list-style: none;
+    }
+
+</style>
+
+<script type="text/javascript" src="./keyboard.js"></script>
+<script type="text/javascript" src="./list.js"></script>
+<script type="text/javascript">
+
+requestAnimFrame = (function() {
+    return window.requestAnimationFrame ||
+            window.webkitRequestAnimationFrame ||
+            window.mozRequestAnimationFrame ||
+            window.oRequestAnimationFrame ||
+            window.msRequestAnimationFrame ||
+            function(/* function FrameRequestCallback */ callback, /* DOMElement Element */ element) {
+                window.setTimeout(callback, 1000/60);
+            };
+})();
+
+Collision = {};
+Collision.quick = function(a, b)
+{
+    if((a.x + a.w) < b.x) return false;
+    if(a.x > (b.x + b.w)) return false;
+    if((a.y + a.h) < b.y) return false;
+    if(a.y > (b.y + b.h)) return false;
+
+    return true;
+}
+
+PLAYER = 0;
+
+function Player(args){
+    if(args == undefined) args = {};
+
+    this.type = PLAYER;
+
+    this._x = args.x || 0;
+    this._y = args.y || 0;
+    this.w = args.w || 0;
+    this.h = args.h || 0;
+
+    this._cx = this._x + this.w/2;
+    this._cy = this._y + this.h/2;
+
+    this.ax = 0;
+    this.ay = 0;
+
+    this.speed = 110;
+    this.shoot = false;
+    this.shootStart = 0.0;
+    this.shootRate = 1/4;
+
+    this.image = args.image || null;
+
+    Object.defineProperty(this, "x", {
+        set: function(value)
+        {
+            this._x = value;
+            this._cx = this._x + this.w/2;
+        },
+        get: function()
+        {
+            return this._x;
+        }
+    });
+
+    Object.defineProperty(this, "y", {
+        set: function(value)
+        {
+            this._y = value;
+            this._cy = this._y + this.h/2;
+        },
+        get: function()
+        {
+            return this._y;
+        }
+    });
+
+    Object.defineProperty(this, "cx", {
+        get: function(value)
+        {
+            return this._cx;
+        }
+    });
+
+    Object.defineProperty(this, "cy", {
+        get: function(value)
+        {
+            return this._cy;
+        }
+    })
+
+    this.draw = function(){
+        Game.canvas.drawImage(this.image, this.x, this.y, this.w, this.h);
+    }
+
+    this.update = function(){
+        if(Game.keyboard.keyIsDown('w') || Game.keyboard.keyIsDown("up_arrow"))
+        {
+            this.y -= this.speed*(Game.elapsedTime/1000);
+        }
+        if(Game.keyboard.keyIsDown('a') || Game.keyboard.keyIsDown("left_arrow"))
+        {
+            this.x -= this.speed*(Game.elapsedTime/1000);
+        }
+        if(Game.keyboard.keyIsDown('s') || Game.keyboard.keyIsDown("down_arrow"))
+        {
+            this.y += this.speed*(Game.elapsedTime/1000);
+        }
+        if(Game.keyboard.keyIsDown('d') || Game.keyboard.keyIsDown("right_arrow"))
+        {
+            this.x += this.speed*(Game.elapsedTime/1000);
+        }
+
+        if(Game.keyboard.keyIsDown('j'))
+        {
+            if(!this.shoot)
+            {
+                this.shoot = true;
+                this.shootStart = +new Date();
+
+                this.shootBullet()
+            }
+        }
+
+        if(this.shoot)
+        {
+            if(((+new Date()) - this.shootStart)/1000 > this.shootRate)
+            {
+                this.shootStart = 0.0;
+                this.shoot = false;
+            }
+        }
+    }
+
+    this.shootBullet = function()
+    {
+        Game.entities.push(new Bullet({x: this.cx, y: this.cy}))
+    }
+}
+
+BULLET = 1;
+function Bullet(args){
+    this._x = args.x || 0;
+    this._y = args.y || 0;
+    this.w = 25;
+    this.h = 5;
+
+    this.type = BULLET;
+
+    this.speed = 350;
+
+    Object.defineProperty(this, "x", {
+        get: function(){
+            return this._x;
+        },
+        set: function(value){
+            this._x = value;
+            this.cx = this._x + this.w/2;
+        }
+    })
+
+    Object.defineProperty(this, "y", {
+        get: function(){
+            return this._y;
+        },
+        set: function(value){
+            this._y = value;
+            this.cy = this._y + this.h/2;
+        }
+    })
+
+    this.draw = function()
+    {
+        Game.canvas.save();
+        Game.canvas.fillStyle = "rgb(255, 255, 255)";
+        Game.canvas.fillRect(this.x, this.y, this.w, this.h);
+        Game.canvas.restore();
+    }
+
+    this.update = function()
+    {
+        this.x += this.speed * (Game.elapsedTime/1000);
+
+        // check for collision;
+    }
+}
+
+ENEMY = 2;
+function Enemy(args)
+{
+    if(args == undefined) args = {};
+
+    this.type = ENEMY;
+
+    this._x = args.x || 0;
+    this._y = args.y || 0;
+    this.w = args.w || 0;
+    this.h = args.h || 0;
+
+    this.hp = 1;
+
+    this.bfn = args.bfn || function(){};
+
+    Object.defineProperty(this, "x", {
+        get: function(){
+            return this._x;
+        },
+        set: function(value){
+            this._x = value;
+            this.cx = this._x + this.w/2;
+        }
+    });
+
+    Object.defineProperty(this, "y", {
+        get: function(){
+            return this._y;
+        },
+        set: function(value){
+            this._y = value;
+            this.cy = this._y + this.h/2;
+        }
+    });
+
+    this.draw = function(){
+        Game.canvas.save();
+        Game.canvas.fillStyle = "rgb(255, 255, 255)";
+        Game.canvas.fillRect(this.x, this.y, this.w, this.h);
+        Game.canvas.restore();
+
+    }
+
+    this.update = function(){
+        this.bfn(this);
+    }
+}
+
+EnemyMove = {};
+EnemyMove.XMinus = function(obj){
+    obj.x -= 150*(Game.elapsedTime/1000);
+}
+
+function Rules()
+{
+    // spawn enemies
+    // rules go by timestamp (millisecond) then obj then name
+    this.rules = new List.List();
+
+    this.completedRules = [];
+
+    // there is a much better way to do this.... maybe have a sorted insert
+    this.Init = function(rules){
+        for(var i = 0; i < rules.length; i++)
+        {
+            this.rules.push(rules[i]);
+        }
+    }
+
+    this.checkRules = function(){
+        var toDo = [];
+
+        this.rules.eachValue(function(e){
+            var time = e[0];
+            if(time < Game.totalElapsedTime)
+            {
+                Game.rules.rules.removeValue(e, function(a, b){ return (a.toString() == b.toString()); })
+                toDo.push(e);
+            }
+        });
+
+
+        // [2000, Enemy, "spawn", EnemyMove.XMinus, {x: 850, y: 400}, 1]
+        for(var i = 0; i < toDo.length; i++)
+        {
+            var r = new (toDo[i][1])({
+                x: toDo[i][4].x,
+                y: toDo[i][4].y,
+                w: 25,
+                h: 25,
+                bfn: toDo[i][3]
+            });
+            Game.entities.push(r);
+        }
+    }
+}
+
+/****************************** GAME STUFF **********************************/
+
+PLAYING = 0;
+PAUSED = 1;
+LOADING = 2;
+
+IMAGE = 0;
+SOUND = 1;
+
+var Game = {};
+Game.stat = LOADING;
+Game.elapsedTime = +new Date();
+Game.time = +new Date();
+Game.previousTime = +new Date();
+Game.totalElapsedTime = 0.0;
+
+Game.keyboard = new KeyboardHandler();
+
+Game.assets = {};
+Game.assetsCount = 0;
+Game.assetsLoaded = 0;
+
+Game.entities = new List.List();
+Game.enemies = new List.List();
+Game.enemyProjectiles = new List.List();
+Game.playerProjectiles = new List.List();
+
+Game.registerAsset = function(tag, assetPath, type)
+{
+    if(!tag) return false;
+    Game.assetsCount += 1;
+
+    switch(type)
+    {
+        case IMAGE:
+            var image = new Image();
+            image.src = assetPath;
+            image.onload = function(){
+                Game.assets[tag] = this;
+                Game.assetsLoaded += 1;
+            }
+            break;
+
+        case SOUND:
+            break;
+    }
+
+    return true;
+}
+
+Game.checkCollision = function()
+{
+
+}
+
+Game.loading = function()
+{
+    if(Game.assetsCount != Game.assetsLoaded)
+    {
+        Game.canvas.strokeStyle = "rgb(255, 255, 255)";
+        Game.canvas.strokeRect(300, 280, 200, 40);
+        Game.canvas.fillStyle = "rgb(255, 255, 255)";
+        Game.canvas.fillRect(300, 280, 200*(Game.assetsCount/Game.assetsLoaded), 40);
+    }
+    else
+    {
+        Game.player = new Player({
+            x: 80,
+            y: 280,
+            w: 40,
+            h: 40,
+            image: Game.assets["ship1"]
+        });
+
+        Game.entities.push(Game.player);
+
+        Game.state = PLAYING;
+
+        console.log("done loading");
+    }
+}
+
+Game.playing = function()
+{
+    Game.rules.checkRules();
+
+    Game.entities.eachValue(function(e){
+        e.draw();
+        e.update(Game.elapsedTime);
+        Game.checkCollision();
+    });
+}
+
+Game.loop = function()
+{
+    Game.previousTime = Game.time;
+    Game.time = +new Date();
+    Game.elapsedTime = Game.time - Game.previousTime;
+    Game.totalElapsedTime += Game.elapsedTime;
+
+    Game.canvas.fillStyle = "rgb(0, 0, 0)";
+    Game.canvas.fillRect(0, 0, Game.Width, Game.Height);
+    Game.debug.time.innerHTML = parseFloat(1000/Game.elapsedTime).toFixed(2);
+    Game.debug.elapsed_time.innerHTML = parseInt(Game.totalElapsedTime).toString();
+
+    switch(Game.state)
+    {
+        case PLAYING:
+            Game.playing();
+            break;
+        case LOADING:
+            Game.loading();
+            break;
+        case PAUSED:
+            break;
+    }
+
+    Game.keyboard.cleaner();
+    requestAnimFrame(Game.loop);
+}
+
+Game.setup = function()
+{
+    Game.state = LOADING;
+    Game.registerAsset("ship1", "./images/ship.png", IMAGE);
+    Game.rules = new Rules();
+    Game.rules.Init([
+        [2000, Enemy, "spawn", EnemyMove.XMinus, {x: 850, y: 200}, 1],
+        [2400, Enemy, "spawn", EnemyMove.XMinus, {x: 850, y: 200}, 1],
+        [2800, Enemy, "spawn", EnemyMove.XMinus, {x: 850, y: 200}, 1],
+        [3200, Enemy, "spawn", EnemyMove.XMinus, {x: 850, y: 200}, 1],
+        [3600, Enemy, "spawn", EnemyMove.XMinus, {x: 850, y: 200}, 1]
+    ]);
+}
+
+window.onload = function()
+{
+
+    Game.debug = {};
+    Game.debug.time = document.getElementById("time");
+    Game.debug.elapsed_time = document.getElementById("total_elapsed_time");
+
+    Game.Width = window.innerWidth;
+    Game.Height = window.innerHeight;
+    Game.canvas = document.getElementById("game-canvas");
+    Game.canvas = Game.canvas.getContext('2d');
+    Game.setup();
+    Game.loop();
+}
+
+</script>
+</head>
+<body>
+    <div class="debug">
+        <ul>
+            <li id="time"></li>
+            <li id="total_elapsed_time"></li>
+        </ul>
+    </div>
+
+    <canvas width="800px" height="600px" id="game-canvas"></canvas>
+
+</body>
+</html>
