@@ -75,6 +75,8 @@ function Player(args){
     this.ax = 0;
     this.ay = 0;
 
+    this.hp = 1;
+
     this.speed = 110;
     this.shoot = false;
     this.shootStart = 0.0;
@@ -165,20 +167,25 @@ function Player(args){
 
     this.shootBullet = function()
     {
-        Game.entities.push(new Bullet({x: this.cx, y: this.cy}))
+        Game.entities.push(new Bullet({x: this.cx, y: this.cy, xspeed: 1.0, speed: 350, owner: PLAYER}))
     }
 }
 
 BULLET = 1;
 function Bullet(args){
+    if(args == undefined) args = {};
+
     this._x = args.x || 0;
     this._y = args.y || 0;
-    this.w = 25;
-    this.h = 5;
+    this.w = args.w || 20;
+    this.h = args.h || 5;
 
     this.type = BULLET;
-
     this.speed = 350;
+    this.xspeed = args.xs || 1.0;
+    this.yspeed = args.ys || 0.0;
+
+    this.owner = args.owner;
 
     Object.defineProperty(this, "x", {
         get: function(){
@@ -211,8 +218,21 @@ function Bullet(args){
     this.update = function()
     {
         this.x += this.speed * (Game.elapsedTime/1000);
+        var $this = this;
 
-        // check for collision;
+        Game.entities.eachValue(function(e){
+            if(e == $this) return;
+            if(e.type == $this.type) return;
+            if(e.type == $this.owner) return;
+
+            if(Collision.quick(e, $this))
+            {
+                console.log(e.type, $this.owner)
+                e.hp -= 1;
+
+                Game.entities.removeValue($this);
+            }
+        });
     }
 }
 
@@ -261,13 +281,37 @@ function Enemy(args)
     }
 
     this.update = function(){
-        this.bfn(this);
+        if(this.hp <= 0)
+        {
+            // die animation starts here
+            Game.entities.removeValue(this);
+        }
+        else
+        {
+            this.bfn(this);
+        }
+
     }
 }
 
 EnemyMove = {};
 EnemyMove.XMinus = function(obj){
     obj.x -= 150*(Game.elapsedTime/1000);
+}
+
+EnemyMove.UpNDown = function(obj){
+    obj.x -= 150*(Game.elapsedTime/1000);
+    obj.y += Math.sin(obj.x/50)*2;
+}
+
+EnemyMove.DiagDown = function(obj){
+    obj.x -= 150*(Game.elapsedTime/1000);
+    obj.y += 50*(Game.elapsedTime/1000);
+}
+
+EnemyMove.DiagUp = function(obj){
+    obj.x -= 150*(Game.elapsedTime/1000);
+    obj.y -= 50*(Game.elapsedTime/1000);
 }
 
 function Rules()
@@ -366,7 +410,6 @@ Game.registerAsset = function(tag, assetPath, type)
 
 Game.checkCollision = function()
 {
-
 }
 
 Game.loading = function()
@@ -441,11 +484,43 @@ Game.setup = function()
     Game.registerAsset("ship1", "./images/ship.png", IMAGE);
     Game.rules = new Rules();
     Game.rules.Init([
-        [2000, Enemy, "spawn", EnemyMove.XMinus, {x: 850, y: 200}, 1],
-        [2400, Enemy, "spawn", EnemyMove.XMinus, {x: 850, y: 200}, 1],
-        [2800, Enemy, "spawn", EnemyMove.XMinus, {x: 850, y: 200}, 1],
-        [3200, Enemy, "spawn", EnemyMove.XMinus, {x: 850, y: 200}, 1],
-        [3600, Enemy, "spawn", EnemyMove.XMinus, {x: 850, y: 200}, 1]
+        [2000, Enemy, "spawn", EnemyMove.DiagDown, {x: 820, y: 200}, 1],
+        [2400, Enemy, "spawn", EnemyMove.DiagDown, {x: 820, y: 200}, 1],
+        [2800, Enemy, "spawn", EnemyMove.DiagDown, {x: 820, y: 200}, 1],
+        [3200, Enemy, "spawn", EnemyMove.DiagDown, {x: 820, y: 200}, 1],
+        [3600, Enemy, "spawn", EnemyMove.DiagDown, {x: 820, y: 200}, 1],
+
+        [7000, Enemy, "spawn", EnemyMove.XMinus, {x: 820, y: 400}, 1],
+        [7400, Enemy, "spawn", EnemyMove.XMinus, {x: 820, y: 400}, 1],
+        [7800, Enemy, "spawn", EnemyMove.XMinus, {x: 820, y: 400}, 1],
+        [8200, Enemy, "spawn", EnemyMove.XMinus, {x: 820, y: 400}, 1],
+        [8600, Enemy, "spawn", EnemyMove.XMinus, {x: 820, y: 400}, 1],
+
+        [12000, Enemy, "spawn", EnemyMove.UpNDown, {x: 820, y: 200}, 1],
+        [12400, Enemy, "spawn", EnemyMove.UpNDown, {x: 820, y: 200}, 1],
+        [12800, Enemy, "spawn", EnemyMove.UpNDown, {x: 820, y: 200}, 1],
+        [13200, Enemy, "spawn", EnemyMove.UpNDown, {x: 820, y: 200}, 1],
+        [13600, Enemy, "spawn", EnemyMove.UpNDown, {x: 820, y: 200}, 1],
+
+        [17000, Enemy, "spawn", EnemyMove.DiagUp, {x: 820, y: 200}, 1],
+        [17400, Enemy, "spawn", EnemyMove.DiagUp, {x: 820, y: 200}, 1],
+        [17800, Enemy, "spawn", EnemyMove.DiagUp, {x: 820, y: 200}, 1],
+        [18200, Enemy, "spawn", EnemyMove.DiagUp, {x: 820, y: 200}, 1],
+        [18600, Enemy, "spawn", EnemyMove.DiagUp, {x: 820, y: 200}, 1],
+
+//        [17000, Enemy, "spawn", EnemyMove.UpNDown, {x: 820, y: 400}, 1],
+//        [17400, Enemy, "spawn", EnemyMove.UpNDown, {x: 820, y: 400}, 1],
+//        [17800, Enemy, "spawn", EnemyMove.UpNDown, {x: 820, y: 400}, 1],
+//        [18200, Enemy, "spawn", EnemyMove.UpNDown, {x: 820, y: 400}, 1],
+//        [18600, Enemy, "spawn", EnemyMove.UpNDown, {x: 820, y: 400}, 1],
+//
+//
+//        [17000, Enemy, "spawn", EnemyMove.DiagDown, {x: 820, y: 400}, 1],
+//        [17400, Enemy, "spawn", EnemyMove.UpNDown, {x: 820, y: 400}, 1],
+//        [17800, Enemy, "spawn", EnemyMove.UpNDown, {x: 820, y: 400}, 1],
+//        [18200, Enemy, "spawn", EnemyMove.UpNDown, {x: 820, y: 400}, 1],
+//        [18600, Enemy, "spawn", EnemyMove.UpNDown, {x: 820, y: 400}, 1]
+
     ]);
 }
 
