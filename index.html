@@ -46,6 +46,47 @@ requestAnimFrame = (function() {
             };
 })();
 
+function RandomInt(max)
+{
+    return parseInt(Math.random()*max);
+}
+
+function RandomFloat(max)
+{
+    return parseFloat(Math.random()*max);
+}
+
+function Rad2Deg(radians)
+{
+    return (radians * (180.0/Math.PI));
+}
+
+function Deg2Rad(degrees)
+{
+    return (degrees * (Math.PI/180.0));
+}
+
+function Color(r, g, b)
+{
+    this.r = r % 255 || 0;
+    this.g = g % 255 || 0;
+    this.b = b % 255 || 0;
+
+    this.toString = function()
+    {
+        return "rgb(" + r + ", " + g + ", " + b + ")";
+    }
+
+    Color.String = function(r, g, b)
+    {
+        r = r % 255;
+        g = g % 255;
+        b = b % 255;
+
+        return "rgb(" + r + ", " + g + ", " + b + ")";
+    }
+}
+
 Collision = {};
 Collision.quick = function(a, b)
 {
@@ -57,8 +98,47 @@ Collision.quick = function(a, b)
     return true;
 }
 
-PLAYER = 0;
+function Particle(args)
+{
+    this.x = args.x || 0;
+    this.y = args.y || 0;
+    this.angle = args.angle || 0;
+    this.speed = args.speed || 100;
+    this.life = args.life || 1000; // ms
+    this.color = args.color || new Color(255, 255, 255);
+    this.born = Game.totalElapsedTime;
 
+    this.ax =
+
+    this.draw = function(){
+        Game.canvas.save();
+        Game.canvas.fillStyle = this.color;
+        Game.canvas.fillRect(this.x, this.y, 1, 1);
+        Game.canvas.restore();
+    }
+
+    this.update = function()
+    {
+        if(this.born + this.life < Game.totalElapsedTime)
+        {
+            this.die();
+        }
+
+
+
+
+    }
+
+    this.die = function()
+    {
+        Game.particles.removeValue(this);
+    }
+
+
+}
+
+
+PLAYER = 0;
 function Player(args){
     if(args == undefined) args = {};
 
@@ -163,7 +243,40 @@ function Player(args){
                 this.shoot = false;
             }
         }
+
+        //CHECK collision
+
+        var $this = this;
+        Game.entities.eachValue(function(e){
+            if(e == $this) return;
+            if(e.type == ENEMY)
+            {
+                if(Collision.quick(e, $this))
+                {
+                    $this.die();
+                }
+            }
+
+           if(e.type == BULLET)
+           {
+               if(e.owner != PLAYER)
+               {
+                   if(Collision.quick(e, $this))
+                   {
+                       $this.die();
+                   }
+               }
+           }
+
+
+        });
     }
+
+    this.die = function()
+    {
+        Game.state = GAMEOVER;
+    }
+
 
     this.shootBullet = function()
     {
@@ -219,6 +332,9 @@ function Bullet(args){
     {
         this.x += this.speed * (Game.elapsedTime/1000);
         var $this = this;
+
+        if(this.x > 900 || this.x < -100) Game.entities.removeValue(this);
+        if(this.y > 700 || this.y < -100) Game.entities.removeValue(this);
 
         Game.entities.eachValue(function(e){
             if(e == $this) return;
@@ -291,6 +407,9 @@ function Enemy(args)
             this.bfn(this);
         }
 
+        if(this.x < -500 || this.x > 1300) Game.entities.removeValue(this);
+        if(this.y < -500 || this.y > 1100) Game.entities.removeValue(this);
+
     }
 }
 
@@ -312,6 +431,16 @@ EnemyMove.DiagDown = function(obj){
 EnemyMove.DiagUp = function(obj){
     obj.x -= 150*(Game.elapsedTime/1000);
     obj.y -= 50*(Game.elapsedTime/1000);
+}
+
+EnemyMove.Follow = function(obj){
+    var mx = obj.x - Game.player.x;
+    var my = obj.y - Game.player.y;
+
+    var hyp = Math.sqrt(mx*mx + my*my);
+
+    obj.x -= (mx/hyp)*160*(Game.elapsedTime/1000);
+    obj.y -= (my/hyp)*160*(Game.elapsedTime/1000);
 }
 
 function Rules()
@@ -363,6 +492,7 @@ function Rules()
 PLAYING = 0;
 PAUSED = 1;
 LOADING = 2;
+GAMEOVER = 3;
 
 IMAGE = 0;
 SOUND = 1;
@@ -381,9 +511,12 @@ Game.assetsCount = 0;
 Game.assetsLoaded = 0;
 
 Game.entities = new List.List();
-Game.enemies = new List.List();
-Game.enemyProjectiles = new List.List();
-Game.playerProjectiles = new List.List();
+Game.particles = new List.List();
+
+// These arent used yet
+//Game.enemies = new List.List();
+//Game.enemyProjectiles = new List.List();
+//Game.playerProjectiles = new List.List();
 
 Game.registerAsset = function(tag, assetPath, type)
 {
@@ -450,6 +583,16 @@ Game.playing = function()
     });
 }
 
+Game.gameover = function()
+{
+    Game.canvas.fillStyle = "rgb(255, 255, 255)";
+    var w = Game.canvas.measureText("Game over...").width;
+    Game.canvas.fillText("Game over...", 400 - (w/2), 290);
+
+    w = Game.canvas.measureText("Thanks for playing! Refresh the page to play again.").width;
+    Game.canvas.fillText("Thanks for playing! Refresh the page to play again.",400-(w/2), 310);
+}
+
 Game.loop = function()
 {
     Game.previousTime = Game.time;
@@ -461,6 +604,7 @@ Game.loop = function()
     Game.canvas.fillRect(0, 0, Game.Width, Game.Height);
     Game.debug.time.innerHTML = parseFloat(1000/Game.elapsedTime).toFixed(2);
     Game.debug.elapsed_time.innerHTML = parseInt(Game.totalElapsedTime).toString();
+    Game.debug.number_entities.innerHTML = Game.entities.length;
 
     switch(Game.state)
     {
@@ -471,6 +615,9 @@ Game.loop = function()
             Game.loading();
             break;
         case PAUSED:
+            break;
+        case GAMEOVER:
+            Game.gameover();
             break;
     }
 
@@ -484,7 +631,7 @@ Game.setup = function()
     Game.registerAsset("ship1", "./images/ship.png", IMAGE);
     Game.rules = new Rules();
     Game.rules.Init([
-        [2000, Enemy, "spawn", EnemyMove.DiagDown, {x: 820, y: 200}, 1],
+        [2000, Enemy, "spawn", EnemyMove.Follow, {x: 820, y: 200}, 1],
         [2400, Enemy, "spawn", EnemyMove.DiagDown, {x: 820, y: 200}, 1],
         [2800, Enemy, "spawn", EnemyMove.DiagDown, {x: 820, y: 200}, 1],
         [3200, Enemy, "spawn", EnemyMove.DiagDown, {x: 820, y: 200}, 1],
@@ -530,6 +677,7 @@ window.onload = function()
     Game.debug = {};
     Game.debug.time = document.getElementById("time");
     Game.debug.elapsed_time = document.getElementById("total_elapsed_time");
+    Game.debug.number_entities = document.getElementById("number_entities");
 
     Game.Width = window.innerWidth;
     Game.Height = window.innerHeight;
@@ -546,6 +694,7 @@ window.onload = function()
         <ul>
             <li id="time"></li>
             <li id="total_elapsed_time"></li>
+            <li id="number_entities"></li>
         </ul>
     </div>
 
