@@ -108,7 +108,8 @@ function Particle(args)
     this.color = args.color || new Color(255, 255, 255);
     this.born = Game.totalElapsedTime;
 
-    this.ax =
+    this.ax = Math.cos(Deg2Rad(this.angle));
+    this.ay = Math.cos(Deg2Rad(this.angle));
 
     this.draw = function(){
         Game.canvas.save();
@@ -124,9 +125,8 @@ function Particle(args)
             this.die();
         }
 
-
-
-
+        this.x += this.speed*this.ax*(Game.elapsedTime/1000);
+        this.y += this.speed*this.ay*(Game.elapsedTime/1000);
     }
 
     this.die = function()
@@ -134,8 +134,36 @@ function Particle(args)
         Game.particles.removeValue(this);
     }
 
+    if(Particle.particles == undefined) Particle.particles = new List.List();
+    Particle.particles.push(this);
+}
+
+function ParticleShooter(args)
+{
+    if(args == undefined) args = {};
+
+    this.thickness = args.thickness || 3;
+    this.colorBase = args.colorBase || new Color(255, 255, 255);
+    this.colorVariance = args.colorVariance || 0;
+    this.direction = args.direction || 0;
+    this.directionVariance = args.directionVariance || 0;
+    this.lifeMax = args.lifeMax || 1000; //ms
+    this.lifeMin = args.lifeMin || 1000;
+
+    this.update = function()
+    {
+        for(var i = 0; i < this.thickness; i++)
+        {
+            new Particle({
+                
+            })
+        }
+    }
+
+
 
 }
+
 
 
 PLAYER = 0;
@@ -578,9 +606,14 @@ Game.playing = function()
 
     Game.entities.eachValue(function(e){
         e.draw();
-        e.update(Game.elapsedTime);
+        e.update();
         Game.checkCollision();
     });
+
+    Particle.Particles.eachValue(function(p){
+        p.draw();
+        p.update();
+    })
 }
 
 Game.gameover = function()
@@ -653,7 +686,7 @@ Game.setup = function()
         [17400, Enemy, "spawn", EnemyMove.DiagUp, {x: 820, y: 200}, 1],
         [17800, Enemy, "spawn", EnemyMove.DiagUp, {x: 820, y: 200}, 1],
         [18200, Enemy, "spawn", EnemyMove.DiagUp, {x: 820, y: 200}, 1],
-        [18600, Enemy, "spawn", EnemyMove.DiagUp, {x: 820, y: 200}, 1],
+        [18600, Enemy, "spawn", EnemyMove.DiagUp, {x: 820, y: 200}, 1]
 
 //        [17000, Enemy, "spawn", EnemyMove.UpNDown, {x: 820, y: 400}, 1],
 //        [17400, Enemy, "spawn", EnemyMove.UpNDown, {x: 820, y: 400}, 1],
@@ -673,7 +706,6 @@ Game.setup = function()
 
 window.onload = function()
 {
-
     Game.debug = {};
     Game.debug.time = document.getElementById("time");
     Game.debug.elapsed_time = document.getElementById("total_elapsed_time");
