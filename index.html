@@ -597,6 +597,7 @@ function Enemy(args)
 
     this.die = function(){
         Game.entities.removeValue(this);
+        Game.enemies.removeValue(this);
         (new ParticleExplosion({
             x: this.x,
             y: this.y,
@@ -608,9 +609,9 @@ function Enemy(args)
             colorBase: new Color(150, 150, 150),
             colorVariance: 105
         })).update();
-
-
     }
+
+    Game.enemies.push(this);
 }
 
 function ToughEnemy(args)
@@ -684,6 +685,8 @@ function ToughEnemy(args)
 
     this.die = function(){
         Game.entities.removeValue(this);
+        Game.enemies.removeValue(this);
+
         (new ParticleExplosion({
             x: this.x,
             y: this.y,
@@ -696,6 +699,8 @@ function ToughEnemy(args)
             colorVariance: 105
         })).update();
     }
+
+    Game.enemies.push(this);
 }
 
 EnemyMove = {};
@@ -784,7 +789,7 @@ function Rules()
     this.checkRules = function(){
         var toDo = [];
 
-        if(Game.rules.rules.length == 0)
+        if(Game.rules.rules.length == 0 && Game.enemies.length == 0)
         {
             setTimeout(function(){
                 Game.state = GAMEWIN;
@@ -846,7 +851,7 @@ Game.entities = new List.List();
 Game.particles = new List.List();
 
 // These arent used yet
-//Game.enemies = new List.List();
+Game.enemies = new List.List();
 //Game.enemyProjectiles = new List.List();
 //Game.playerProjectiles = new List.List();
 
@@ -1042,7 +1047,7 @@ Game.setup = function()
         [25800, Enemy, "spawn", EnemyMove.UpNDown, {x: 820, y: 400}, 1],
         [26200, Enemy, "spawn", EnemyMove.UpNDown, {x: 820, y: 400}, 1],
         [26600, Enemy, "spawn", EnemyMove.UpNDown, {x: 820, y: 400}, 1],
-        [30000, ToughEnemy, "spawn", EnemyMove.OutNShootUpNDownFollowShort, {x: 820, y: 300, hp: 15, speed: 50}, 1]
+        [30000, ToughEnemy, "spawn", EnemyMove.OutNShootUpNDownFollowShort, {x: 820, y: 300, hp: 15, speed: 130}, 1]
     ]);
 }
 
