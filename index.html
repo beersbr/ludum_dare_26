@@ -431,7 +431,7 @@ function Player(args){
 
         setTimeout(function(){
            Game.state = GAMEOVER;
-        }, 2000)
+        }, 800)
     }
 
 
@@ -954,10 +954,10 @@ Game.loop = function()
 
     Game.canvas.fillStyle = "rgb(0, 0, 0)";
     Game.canvas.fillRect(0, 0, Game.Width, Game.Height);
-    Game.debug.time.innerHTML = parseFloat(1000/Game.elapsedTime).toFixed(2);
-    Game.debug.elapsed_time.innerHTML = parseInt(Game.totalElapsedTime).toString();
-    Game.debug.number_entities.innerHTML = Game.entities.length;
-    Game.debug.number_particles.innerHTML = Particle.particles.length;
+//    Game.debug.time.innerHTML = parseFloat(1000/Game.elapsedTime).toFixed(2);
+//    Game.debug.elapsed_time.innerHTML = parseInt(Game.totalElapsedTime).toString();
+//    Game.debug.number_entities.innerHTML = Game.entities.length;
+//    Game.debug.number_particles.innerHTML = Particle.particles.length;
 
     switch(Game.state)
     {
@@ -1049,10 +1049,10 @@ Game.setup = function()
 window.onload = function()
 {
     Game.debug = {};
-    Game.debug.time = document.getElementById("time");
-    Game.debug.elapsed_time = document.getElementById("total_elapsed_time");
-    Game.debug.number_entities = document.getElementById("number_entities");
-    Game.debug.number_particles = document.getElementById("number_particles");
+//    Game.debug.time = document.getElementById("time");
+//    Game.debug.elapsed_time = document.getElementById("total_elapsed_time");
+//    Game.debug.number_entities = document.getElementById("number_entities");
+//    Game.debug.number_particles = document.getElementById("number_particles");
 
     Game.Width = window.innerWidth;
     Game.Height = window.innerHeight;
@@ -1067,10 +1067,12 @@ window.onload = function()
 <body>
     <div class="debug">
         <ul>
-            <li id="time"></li>
-            <li id="total_elapsed_time"></li>
-            <li id="number_entities"></li>
-            <li id="number_particles"></li>
+            <li>Use Arrow Keys or WASD to move</li>
+            <li>Press J to shoot</li>
+            <!--<li id="time"></li>-->
+            <!--<li id="total_elapsed_time"></li>-->
+            <!--<li id="number_entities"></li>-->
+            <!--<li id="number_particles"></li>-->
         </ul>
     </div>
 
