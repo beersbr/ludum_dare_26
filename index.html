@@ -220,6 +220,43 @@ function ParticleRectangle(args)
     }
 }
 
+function ParticleExplosion(args){
+    if(args == undefined) args = {};
+
+    this.x = args.x;
+    this.y = args.y;
+
+    this.thickness = args.thickness || 150;
+    this.colorBase = args.colorBase || new Color(255, 255, 255);
+    this.colorVariance = args.colorVariance || 0;
+    this.lifeBase = args.lifeBase || 1000;
+    this.lifeVariance = args.lifeVariance || 150;
+    this.speedBase = args.speedBase || 100;
+    this.speedVariance = args.speedVariance || 300;
+
+    this.update = function(){
+
+        for(var i = 0; i < this.thickness; i++)
+        {
+            var color = ("rgb("+(this.colorBase.r + this.colorVariance) + ", " + (this.colorBase.g + this.colorVariance) + ", " + (this.colorBase.b + this.colorVariance) + ")");
+            var life = this.lifeBase + RandomInt(this.lifeVariance);
+            var angle = RandomInt(360);
+            var speed = this.speedBase + RandomInt(this.speedVariance);
+            var x = this.x;
+            var y = this.y;
+
+            new Particle({
+                x: x,
+                y: y,
+                color: color,
+                life: life,
+                speed: speed,
+                angle: angle
+            });
+        }
+    }
+}
+
 
 PLAYER = 0;
 function Player(args){
@@ -304,21 +341,27 @@ function Player(args){
     }
 
     this.update = function(){
+        if(this.hp <= 0) this.die();
+
         if(Game.keyboard.keyIsDown('w') || Game.keyboard.keyIsDown("up_arrow"))
         {
             this.y -= this.speed*(Game.elapsedTime/1000);
+            if(this.y < 0) this.y += 1;
         }
         if(Game.keyboard.keyIsDown('a') || Game.keyboard.keyIsDown("left_arrow"))
         {
             this.x -= this.speed*(Game.elapsedTime/1000);
+            if(this.x < 0) this.x += 1;
         }
         if(Game.keyboard.keyIsDown('s') || Game.keyboard.keyIsDown("down_arrow"))
         {
             this.y += this.speed*(Game.elapsedTime/1000);
+            if(this.y + this.h > 600) this.y -= 1;
         }
         if(Game.keyboard.keyIsDown('d') || Game.keyboard.keyIsDown("right_arrow"))
         {
             this.x += this.speed*(Game.elapsedTime/1000);
+            if(this.x + this.w > 800) this.x -= 1;
         }
 
         if(Game.keyboard.keyIsDown('j'))
@@ -346,7 +389,6 @@ function Player(args){
         this.particleFountain.y = this.y+23;
 
         //CHECK collision
-
         var $this = this;
         Game.entities.eachValue(function(e){
             if(e == $this) return;
@@ -375,7 +417,21 @@ function Player(args){
 
     this.die = function()
     {
-        Game.state = GAMEOVER;
+        (new ParticleExplosion({
+            x: this.x+this.w/2,
+            y: this.y+this.h/2,
+            thickness: 300,
+            speedBase: 10,
+            speedVariance: 200,
+            lifeBase: 200,
+            lifeVariance: 1000,
+            colorBase: new Color(150, 150, 150),
+            colorVariance: 105
+        })).update();
+
+        setTimeout(function(){
+           Game.state = GAMEOVER;
+        }, 2000)
     }
 
 
@@ -396,8 +452,8 @@ function Bullet(args){
 
     this.type = BULLET;
     this.speed = 350;
-    this.xspeed = args.xs || 1.0;
-    this.yspeed = args.ys || 0.0;
+    this.xspeed = args.xspeed || 1.0;
+    this.yspeed = args.yspeed || 0.0;
 
     this.owner = args.owner;
 
@@ -431,7 +487,7 @@ function Bullet(args){
 
     this.update = function()
     {
-        this.x += this.speed * (Game.elapsedTime/1000);
+        this.x += (this.xspeed*this.speed) * (Game.elapsedTime/1000);
         var $this = this;
 
         if(this.x > 900 || this.x < -100) Game.entities.removeValue(this);
@@ -445,10 +501,27 @@ function Bullet(args){
             if(Collision.quick(e, $this))
             {
                 e.hp -= 1;
-
-                Game.entities.removeValue($this);
+                $this.die();
             }
         });
+    }
+
+    this.die = function()
+    {
+        (new ParticleExplosion({
+            x: this.x+this.w,
+            y: this.y+(this.h/2),
+            thickness: 50,
+            speedBase: 100,
+            speedVariance: 50,
+            lifeBase: 300,
+            lifeVariance: 300,
+            colorBase: new Color(100, 100, 100),
+            colorVariance: 100
+        })).update();
+
+        Game.entities.removeValue(this);
+
     }
 }
 
@@ -464,7 +537,12 @@ function Enemy(args)
     this.w = args.w || 0;
     this.h = args.h || 0;
 
+    this.speed = args.speed || 150;
+
     this.hp = 1;
+
+    this.born = Game.totalElapsedTime;
+    this.alive = 0;
 
     this.bfn = args.bfn || function(){};
 
@@ -496,11 +574,16 @@ function Enemy(args)
 
     }
 
+    this.shootBullet = function()
+    {
+        Game.entities.push(new Bullet({x: this.cx, y: this.cy, xspeed: -1.0, speed: 350, owner: ENEMY}))
+    }
+
     this.update = function(){
+        this.alive += Game.elapsedTime;
         if(this.hp <= 0)
         {
-            // die animation starts here
-            Game.entities.removeValue(this);
+            this.die();
         }
         else
         {
@@ -510,6 +593,108 @@ function Enemy(args)
         if(this.x < -500 || this.x > 1300) Game.entities.removeValue(this);
         if(this.y < -500 || this.y > 1100) Game.entities.removeValue(this);
 
+    }
+
+    this.die = function(){
+        Game.entities.removeValue(this);
+        (new ParticleExplosion({
+            x: this.x,
+            y: this.y,
+            thickness: 200,
+            speedBase: 300,
+            speedVariance: 200,
+            lifeBase: 200,
+            lifeVariance: 1000,
+            colorBase: new Color(150, 150, 150),
+            colorVariance: 105
+        })).update();
+
+
+    }
+}
+
+function ToughEnemy(args)
+{
+    if(args == undefined) args = {};
+
+    this.type = ENEMY;
+
+    this._x = args.x || 0;
+    this._y = args.y || 0;
+    this.w = args.w || 0;
+    this.h = args.h || 0;
+
+    this.speed = args.speed || 150;
+
+    this.hp = args.hp || 10;
+
+    this.born = Game.totalElapsedTime;
+    this.alive = 0;
+
+    this.bfn = args.bfn || function(){};
+
+    Object.defineProperty(this, "x", {
+        get: function(){
+            return this._x;
+        },
+        set: function(value){
+            this._x = value;
+            this.cx = this._x + this.w/2;
+        }
+    });
+
+    Object.defineProperty(this, "y", {
+        get: function(){
+            return this._y;
+        },
+        set: function(value){
+            this._y = value;
+            this.cy = this._y + this.h/2;
+        }
+    });
+
+    this.draw = function(){
+        Game.canvas.save();
+        Game.canvas.fillStyle = "rgb(180, 180, 180)";
+        Game.canvas.fillRect(this.x, this.y, this.w, this.h);
+        Game.canvas.restore();
+
+    }
+
+    this.update = function(){
+        this.alive += Game.elapsedTime;
+        if(this.hp <= 0)
+        {
+            this.die();
+        }
+        else
+        {
+            this.bfn(this);
+        }
+
+        if(this.x < -500 || this.x > 1300) Game.entities.removeValue(this);
+        if(this.y < -500 || this.y > 1100) Game.entities.removeValue(this);
+
+    }
+
+    this.shootBullet = function()
+    {
+        Game.entities.push(new Bullet({x: this.cx, y: this.cy, xspeed: -1.0, speed: 350, owner: ENEMY}))
+    }
+
+    this.die = function(){
+        Game.entities.removeValue(this);
+        (new ParticleExplosion({
+            x: this.x,
+            y: this.y,
+            thickness: 200,
+            speedBase: 300,
+            speedVariance: 200,
+            lifeBase: 200,
+            lifeVariance: 1000,
+            colorBase: new Color(150, 150, 150),
+            colorVariance: 105
+        })).update();
     }
 }
 
@@ -543,6 +728,43 @@ EnemyMove.Follow = function(obj){
     obj.y -= (my/hyp)*160*(Game.elapsedTime/1000);
 }
 
+EnemyMove.OutNShootUpNDownShort = function(obj){
+    // move out for 1.5 seconds, move up and down and shoot player
+    if(this.born + 1500 < Game.totalElapsedTime)
+    {
+        obj.y += Math.cos(obj.alive/450)*7;
+        if((this.alive % 800) < 16 && (this.alive % 800) > 0)
+        {
+            obj.shootBullet();
+        }
+
+    }
+    else
+    {
+        obj.x -= 150*(Game.elapsedTime/1000);
+    }
+
+}
+
+EnemyMove.OutNShootUpNDownFollowShort = function(obj){
+    if(this.born + 1500 < Game.totalElapsedTime)
+    {
+        var mx = obj.x - Game.player.x;
+        var my = obj.y - Game.player.y;
+        var hyp = Math.sqrt(mx*mx + my*my);
+        obj.y -= (my/hyp)*obj.speed*(Game.elapsedTime/1000)
+        if((this.alive % 800) < 16 && (this.alive % 800) > 0)
+        {
+            obj.shootBullet();
+        }
+
+    }
+    else
+    {
+        obj.x -= 150*(Game.elapsedTime/1000);
+    }
+}
+
 function Rules()
 {
     // spawn enemies
@@ -562,6 +784,13 @@ function Rules()
     this.checkRules = function(){
         var toDo = [];
 
+        if(Game.rules.rules.length == 0)
+        {
+            setTimeout(function(){
+                Game.state = GAMEWIN;
+            }, 1500)
+        }
+
         this.rules.eachValue(function(e){
             var time = e[0];
             if(time < Game.totalElapsedTime)
@@ -578,8 +807,10 @@ function Rules()
             var r = new (toDo[i][1])({
                 x: toDo[i][4].x,
                 y: toDo[i][4].y,
-                w: 25,
-                h: 25,
+                w: (toDo[i][4].w || 25),
+                h: (toDo[i][4].h || 25),
+                speed: toDo[i][4].speed,
+                hp: toDo[i][4].hp,
                 bfn: toDo[i][3]
             });
             Game.entities.push(r);
@@ -593,6 +824,7 @@ PLAYING = 0;
 PAUSED = 1;
 LOADING = 2;
 GAMEOVER = 3;
+GAMEWIN = 4;
 
 IMAGE = 0;
 SOUND = 1;
@@ -690,6 +922,19 @@ Game.playing = function()
 
 }
 
+Game.gamewin = function()
+{
+    Game.canvas.fillStyle = "rgb(255, 255, 255)";
+    var w = Game.canvas.measureText("YOU WON!!!").width;
+    Game.canvas.fillText("YOU WON!!!", 400 - (w/2), 290);
+
+    w = Game.canvas.measureText("Thanks for playing! I'm sorry the game was so short, but I started a bit late :(. I hope you enjoyed it!").width;
+    Game.canvas.fillText("Thanks for playing! I'm sorry the game was so short, but I started a bit late :(. I hope you enjoyed it!",400-(w/2), 310);
+
+    w = Game.canvas.measureText("Refresh the page to play again.").width;
+    Game.canvas.fillText("Refresh the page to play again.",400-(w/2), 340);
+}
+
 Game.gameover = function()
 {
     Game.canvas.fillStyle = "rgb(255, 255, 255)";
@@ -727,6 +972,9 @@ Game.loop = function()
         case GAMEOVER:
             Game.gameover();
             break;
+        case GAMEWIN:
+            Game.gamewin();
+            break;
     }
 
     Game.keyboard.cleaner();
@@ -754,12 +1002,13 @@ Game.setup = function()
 
     });
 
+    // this is the level
     Game.rules.Init([
-        [2000, Enemy, "spawn", EnemyMove.Follow, {x: 820, y: 200}, 1],
-        [2400, Enemy, "spawn", EnemyMove.DiagDown, {x: 820, y: 200}, 1],
-        [2800, Enemy, "spawn", EnemyMove.DiagDown, {x: 820, y: 200}, 1],
-        [3200, Enemy, "spawn", EnemyMove.DiagDown, {x: 820, y: 200}, 1],
-        [3600, Enemy, "spawn", EnemyMove.DiagDown, {x: 820, y: 200}, 1],
+        [2000, Enemy, "spawn", EnemyMove.XMinus, {x: 820, y: 200}, 1],
+        [2400, Enemy, "spawn", EnemyMove.XMinus, {x: 820, y: 200}, 1],
+        [2800, Enemy, "spawn", EnemyMove.XMinus, {x: 820, y: 200}, 1],
+        [3200, Enemy, "spawn", EnemyMove.XMinus, {x: 820, y: 200}, 1],
+        [3600, Enemy, "spawn", EnemyMove.XMinus, {x: 820, y: 200}, 1],
 
         [7000, Enemy, "spawn", EnemyMove.XMinus, {x: 820, y: 400}, 1],
         [7400, Enemy, "spawn", EnemyMove.XMinus, {x: 820, y: 400}, 1],
@@ -767,31 +1016,33 @@ Game.setup = function()
         [8200, Enemy, "spawn", EnemyMove.XMinus, {x: 820, y: 400}, 1],
         [8600, Enemy, "spawn", EnemyMove.XMinus, {x: 820, y: 400}, 1],
 
-        [12000, Enemy, "spawn", EnemyMove.UpNDown, {x: 820, y: 200}, 1],
-        [12400, Enemy, "spawn", EnemyMove.UpNDown, {x: 820, y: 200}, 1],
-        [12800, Enemy, "spawn", EnemyMove.UpNDown, {x: 820, y: 200}, 1],
-        [13200, Enemy, "spawn", EnemyMove.UpNDown, {x: 820, y: 200}, 1],
-        [13600, Enemy, "spawn", EnemyMove.UpNDown, {x: 820, y: 200}, 1],
+        [12000, Enemy, "spawn", EnemyMove.DiagDown, {x: 820, y: 200}, 1],
+        [12400, Enemy, "spawn", EnemyMove.DiagDown, {x: 820, y: 200}, 1],
+        [12800, Enemy, "spawn", EnemyMove.DiagDown, {x: 820, y: 200}, 1],
+        [13200, Enemy, "spawn", EnemyMove.DiagDown, {x: 820, y: 200}, 1],
+        [13600, Enemy, "spawn", EnemyMove.DiagDown, {x: 820, y: 200}, 1],
 
-        [17000, Enemy, "spawn", EnemyMove.DiagUp, {x: 820, y: 200}, 1],
-        [17400, Enemy, "spawn", EnemyMove.DiagUp, {x: 820, y: 200}, 1],
-        [17800, Enemy, "spawn", EnemyMove.DiagUp, {x: 820, y: 200}, 1],
-        [18200, Enemy, "spawn", EnemyMove.DiagUp, {x: 820, y: 200}, 1],
-        [18600, Enemy, "spawn", EnemyMove.DiagUp, {x: 820, y: 200}, 1]
+        [17000, Enemy, "spawn", EnemyMove.DiagUp, {x: 820, y: 400}, 1],
+        [17400, Enemy, "spawn", EnemyMove.DiagUp, {x: 820, y: 400}, 1],
+        [17800, Enemy, "spawn", EnemyMove.DiagUp, {x: 820, y: 400}, 1],
+        [18200, Enemy, "spawn", EnemyMove.DiagUp, {x: 820, y: 400}, 1],
+        [18600, Enemy, "spawn", EnemyMove.DiagUp, {x: 820, y: 400}, 1],
 
-//        [17000, Enemy, "spawn", EnemyMove.UpNDown, {x: 820, y: 400}, 1],
-//        [17400, Enemy, "spawn", EnemyMove.UpNDown, {x: 820, y: 400}, 1],
-//        [17800, Enemy, "spawn", EnemyMove.UpNDown, {x: 820, y: 400}, 1],
-//        [18200, Enemy, "spawn", EnemyMove.UpNDown, {x: 820, y: 400}, 1],
-//        [18600, Enemy, "spawn", EnemyMove.UpNDown, {x: 820, y: 400}, 1],
-//
-//
-//        [17000, Enemy, "spawn", EnemyMove.DiagDown, {x: 820, y: 400}, 1],
-//        [17400, Enemy, "spawn", EnemyMove.UpNDown, {x: 820, y: 400}, 1],
-//        [17800, Enemy, "spawn", EnemyMove.UpNDown, {x: 820, y: 400}, 1],
-//        [18200, Enemy, "spawn", EnemyMove.UpNDown, {x: 820, y: 400}, 1],
-//        [18600, Enemy, "spawn", EnemyMove.UpNDown, {x: 820, y: 400}, 1]
+        [20000, ToughEnemy, "spawn", EnemyMove.Follow, {x: 820, y: 200, hp: 3}, 1],
+        [20000, ToughEnemy, "spawn", EnemyMove.Follow, {x: 820, y: 400, hp: 3}, 1],
 
+        [23000, Enemy, "spawn", EnemyMove.UpNDown, {x: 820, y: 200}, 1],
+        [23400, Enemy, "spawn", EnemyMove.UpNDown, {x: 820, y: 200}, 1],
+        [23800, Enemy, "spawn", EnemyMove.UpNDown, {x: 820, y: 200}, 1],
+        [24200, Enemy, "spawn", EnemyMove.UpNDown, {x: 820, y: 200}, 1],
+        [24600, Enemy, "spawn", EnemyMove.UpNDown, {x: 820, y: 200}, 1],
+
+        [25000, Enemy, "spawn", EnemyMove.UpNDown, {x: 820, y: 400}, 1],
+        [25400, Enemy, "spawn", EnemyMove.UpNDown, {x: 820, y: 400}, 1],
+        [25800, Enemy, "spawn", EnemyMove.UpNDown, {x: 820, y: 400}, 1],
+        [26200, Enemy, "spawn", EnemyMove.UpNDown, {x: 820, y: 400}, 1],
+        [26600, Enemy, "spawn", EnemyMove.UpNDown, {x: 820, y: 400}, 1],
+        [30000, ToughEnemy, "spawn", EnemyMove.OutNShootUpNDownFollowShort, {x: 820, y: 300, hp: 15, speed: 50}, 1]
     ]);
 }
 
