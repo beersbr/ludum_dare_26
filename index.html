@@ -58,12 +58,12 @@ function RandomFloat(max)
 
 function Rad2Deg(radians)
 {
-    return (radians * (180.0/Math.PI));
+    return ((radians * 180.0)/Math.PI);
 }
 
 function Deg2Rad(degrees)
 {
-    return (degrees * (Math.PI/180.0));
+    return ((degrees * Math.PI)/180.0);
 }
 
 function Color(r, g, b)
@@ -98,6 +98,7 @@ Collision.quick = function(a, b)
     return true;
 }
 
+Particle.particles = new List.List();
 function Particle(args)
 {
     this.x = args.x || 0;
@@ -109,7 +110,7 @@ function Particle(args)
     this.born = Game.totalElapsedTime;
 
     this.ax = Math.cos(Deg2Rad(this.angle));
-    this.ay = Math.cos(Deg2Rad(this.angle));
+    this.ay = Math.sin(Deg2Rad(this.angle));
 
     this.draw = function(){
         Game.canvas.save();
@@ -131,7 +132,7 @@ function Particle(args)
 
     this.die = function()
     {
-        Game.particles.removeValue(this);
+        Particle.particles.removeValue(this);
     }
 
     if(Particle.particles == undefined) Particle.particles = new List.List();
@@ -142,28 +143,82 @@ function ParticleShooter(args)
 {
     if(args == undefined) args = {};
 
+    this.x = args.x || 0;
+    this.y = args.y || 0;
     this.thickness = args.thickness || 3;
     this.colorBase = args.colorBase || new Color(255, 255, 255);
     this.colorVariance = args.colorVariance || 0;
-    this.direction = args.direction || 0;
-    this.directionVariance = args.directionVariance || 0;
-    this.lifeMax = args.lifeMax || 1000; //ms
-    this.lifeMin = args.lifeMin || 1000;
+    this.angleBase = args.angleBase || 0;
+    this.angleVariance = args.angleVariance;
+    this.lifeBase = args.lifeBase || 1000; //ms
+    this.lifeVariance = args.lifeVariance || 1000;
+    this.speedBase = args.speedBase || 150;
+    this.speedVariance = args.speedVariance || 50;
 
     this.update = function()
     {
         for(var i = 0; i < this.thickness; i++)
         {
+            var colorVar = RandomInt(this.colorVariance);
+            var lifeVar = RandomInt(this.lifeVariance);
+            var angleVar = RandomInt(this.angleVariance);
+            var speedVar = RandomInt(this.speedVariance);
+
             new Particle({
-                
-            })
+                x: this.x,
+                y: this.y,
+                color: ("rgb("+(this.colorBase.r + colorVar) + ", " + (this.colorBase.g + colorVar) + ", " + (this.colorBase.b + colorVar) + ")"),
+                life: this.lifeBase + lifeVar,
+                angle: this.angleBase + angleVar,
+                speed: this.speedBase + speedVar
+
+            });
         }
     }
-
-
-
 }
 
+function ParticleRectangle(args)
+{
+    if(args == undefined) args = {};
+
+    this.x = args.x;
+    this.y = args.y;
+    this.w = args.w;
+    this.h = args.h;
+
+    this.thickness = args.thickness || 10;
+    this.colorBase = args.colorBase || new Color(255, 255, 255);
+    this.colorVariance = args.colorVariance;
+    this.angleBase = args.angleBase || 180;
+    this.lifeBase = args.lifeBase || 1000;
+    this.lifeVariance = args.lifeVariance || 150;
+    this.speedBase = args.speedBase || 150;
+    this.speedVariance = args.speedVariance || 0;
+
+    this.update = function()
+    {
+        for(var i = 0; i < this.thickness; i++)
+        {
+            var color = ("rgb("+(this.colorBase.r + this.colorVariance) + ", " + (this.colorBase.g + this.colorVariance) + ", " + (this.colorBase.b + this.colorVariance) + ")");
+            var life = this.lifeBase + RandomInt(this.lifeVariance);
+            var angle = this.angleBase;
+            var speed = this.speedBase + RandomInt(this.speedVariance);
+            var x = this.x + RandomInt(this.w);
+            var y = this.y + RandomInt(this.h);
+
+
+            new Particle({
+                x: x,
+                y: y,
+                color: color,
+                life: life,
+                speed: speed,
+                angle: angle
+            });
+
+        }
+    }
+}
 
 
 PLAYER = 0;
@@ -191,6 +246,20 @@ function Player(args){
     this.shootRate = 1/4;
 
     this.image = args.image || null;
+
+    this.particleFountain = new ParticleShooter({
+        x: this.x,
+        y: this.y,
+        thickness: 3,
+        colorBase: new Color(100, 100, 100),
+        colorVariance: 155,
+        angleBase: 161,
+        angleVariance: 50,
+        lifeBase: 1000,
+        lifeVariance: 200,
+        speedBase: 100,
+        speedVariance: 50
+    });
 
     Object.defineProperty(this, "x", {
         set: function(value)
@@ -271,6 +340,10 @@ function Player(args){
                 this.shoot = false;
             }
         }
+
+        this.particleFountain.update();
+        this.particleFountain.x = this.x+6;
+        this.particleFountain.y = this.y+23;
 
         //CHECK collision
 
@@ -371,7 +444,6 @@ function Bullet(args){
 
             if(Collision.quick(e, $this))
             {
-                console.log(e.type, $this.owner)
                 e.hp -= 1;
 
                 Game.entities.removeValue($this);
@@ -595,8 +667,6 @@ Game.loading = function()
         Game.entities.push(Game.player);
 
         Game.state = PLAYING;
-
-        console.log("done loading");
     }
 }
 
@@ -604,16 +674,20 @@ Game.playing = function()
 {
     Game.rules.checkRules();
 
+    Game.particles.update();
+
+    Particle.particles.eachValue(function(p){
+        p.draw();
+        p.update();
+    });
+
     Game.entities.eachValue(function(e){
         e.draw();
         e.update();
         Game.checkCollision();
     });
 
-    Particle.Particles.eachValue(function(p){
-        p.draw();
-        p.update();
-    })
+
 }
 
 Game.gameover = function()
@@ -638,6 +712,7 @@ Game.loop = function()
     Game.debug.time.innerHTML = parseFloat(1000/Game.elapsedTime).toFixed(2);
     Game.debug.elapsed_time.innerHTML = parseInt(Game.totalElapsedTime).toString();
     Game.debug.number_entities.innerHTML = Game.entities.length;
+    Game.debug.number_particles.innerHTML = Particle.particles.length;
 
     switch(Game.state)
     {
@@ -663,6 +738,22 @@ Game.setup = function()
     Game.state = LOADING;
     Game.registerAsset("ship1", "./images/ship.png", IMAGE);
     Game.rules = new Rules();
+    Game.particles = new ParticleRectangle({
+        x: 0,
+        y: 0,
+        w: 800,
+        h: 600,
+        colorBase: new Color(100, 100, 100),
+        colorVariance: 150,
+        thickness: 5,
+        angleBase: 180,
+        lifeBase: 1500,
+        lifeVariance: 500,
+        speedBase: 80,
+        speedVariance: 20
+
+    });
+
     Game.rules.Init([
         [2000, Enemy, "spawn", EnemyMove.Follow, {x: 820, y: 200}, 1],
         [2400, Enemy, "spawn", EnemyMove.DiagDown, {x: 820, y: 200}, 1],
@@ -710,6 +801,7 @@ window.onload = function()
     Game.debug.time = document.getElementById("time");
     Game.debug.elapsed_time = document.getElementById("total_elapsed_time");
     Game.debug.number_entities = document.getElementById("number_entities");
+    Game.debug.number_particles = document.getElementById("number_particles");
 
     Game.Width = window.innerWidth;
     Game.Height = window.innerHeight;
@@ -727,6 +819,7 @@ window.onload = function()
             <li id="time"></li>
             <li id="total_elapsed_time"></li>
             <li id="number_entities"></li>
+            <li id="number_particles"></li>
         </ul>
     </div>
 
