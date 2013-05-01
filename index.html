@@ -590,8 +590,8 @@ function Enemy(args)
             this.bfn(this);
         }
 
-        if(this.x < -500 || this.x > 1300) Game.entities.removeValue(this);
-        if(this.y < -500 || this.y > 1100) Game.entities.removeValue(this);
+        if(this.x < -500 || this.x > 1300) this.die();
+        if(this.y < -500 || this.y > 1100) this.die();
 
     }
 
@@ -673,8 +673,8 @@ function ToughEnemy(args)
             this.bfn(this);
         }
 
-        if(this.x < -500 || this.x > 1300) Game.entities.removeValue(this);
-        if(this.y < -500 || this.y > 1100) Game.entities.removeValue(this);
+        if(this.x < -500 || this.x > 1300) this.die();
+        if(this.y < -500 || this.y > 1100) this.die();
 
     }
 
