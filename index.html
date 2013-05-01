@@ -590,25 +590,29 @@ function Enemy(args)
             this.bfn(this);
         }
 
-        if(this.x < -500 || this.x > 1300) Game.entities.removeValue(this);
-        if(this.y < -500 || this.y > 1100) Game.entities.removeValue(this);
+        if(this.x < -500 || this.x > 1300) this.die(true);
+        if(this.y < -500 || this.y > 1100) this.die(true);
 
     }
 
-    this.die = function(){
+    this.die = function(silent){
         Game.entities.removeValue(this);
         Game.enemies.removeValue(this);
-        (new ParticleExplosion({
-            x: this.x,
-            y: this.y,
-            thickness: 200,
-            speedBase: 300,
-            speedVariance: 200,
-            lifeBase: 200,
-            lifeVariance: 1000,
-            colorBase: new Color(150, 150, 150),
-            colorVariance: 105
-        })).update();
+
+        if(!silent)
+        {
+            (new ParticleExplosion({
+                x: this.x,
+                y: this.y,
+                thickness: 200,
+                speedBase: 300,
+                speedVariance: 200,
+                lifeBase: 200,
+                lifeVariance: 1000,
+                colorBase: new Color(150, 150, 150),
+                colorVariance: 105
+            })).update();
+        }
     }
 
     Game.enemies.push(this);
@@ -673,8 +677,8 @@ function ToughEnemy(args)
             this.bfn(this);
         }
 
-        if(this.x < -500 || this.x > 1300) Game.entities.removeValue(this);
-        if(this.y < -500 || this.y > 1100) Game.entities.removeValue(this);
+        if(this.x < -500 || this.x > 1300) this.die(true);
+        if(this.y < -500 || this.y > 1100) this.die(true);
 
     }
 
@@ -683,21 +687,24 @@ function ToughEnemy(args)
         Game.entities.push(new Bullet({x: this.cx, y: this.cy, xspeed: -1.0, speed: 350, owner: ENEMY}))
     }
 
-    this.die = function(){
+    this.die = function(silent){
         Game.entities.removeValue(this);
         Game.enemies.removeValue(this);
 
-        (new ParticleExplosion({
-            x: this.x,
-            y: this.y,
-            thickness: 200,
-            speedBase: 300,
-            speedVariance: 200,
-            lifeBase: 200,
-            lifeVariance: 1000,
-            colorBase: new Color(150, 150, 150),
-            colorVariance: 105
-        })).update();
+        if(!silent){
+            (new ParticleExplosion({
+                x: this.x,
+                y: this.y,
+                thickness: 200,
+                speedBase: 300,
+                speedVariance: 200,
+                lifeBase: 200,
+                lifeVariance: 1000,
+                colorBase: new Color(150, 150, 150),
+                colorVariance: 105
+            })).update();
+        }
+
     }
 
     Game.enemies.push(this);
