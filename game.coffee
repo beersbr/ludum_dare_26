@@ -1,5 +1,9 @@
+
+
 class Entity
   constructor: (args) ->
+    args = {} if not args
+
     @._x = args.x || 0;
     @._y = args.y || 0;
     @.w = args.w || 0;
@@ -19,5 +23,12 @@ class Entity
         @_y = val;
         return;
 
+  draw: () ->
+  update: () ->
+  die: () ->
 
-  draw: ()
+class Player extends Entity
+  constructor: (args) ->
+    args = {} if not args
+
+
